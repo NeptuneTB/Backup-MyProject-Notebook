@@ -1,0 +1,5 @@
+# depslib dependency file v1.0
+1702206932 source:c:\users\lenovo\documents\my projects\code.block\testmacro\main.c
+	<stdio.h>
+	<conio.h>
+

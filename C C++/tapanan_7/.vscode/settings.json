@@ -1,0 +1,7 @@
+{
+    "sonarlint.pathToCompileCommands": "${workspaceFolder}\\.vscode\\compile_commands.json",
+    "C_Cpp.errorSquiggles": "disabled",
+    "cSpell.words": [
+        "getche"
+    ]
+}
