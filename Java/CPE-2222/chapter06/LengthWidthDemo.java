@@ -11,10 +11,11 @@ public class LengthWidthDemo {
         box.setWidth(20.0);
         box.setColor("Red");
         
-        System.out.println("The box's lengthis " + box.getLength());
+        System.out.println("The box's length is " + box.getLength());
         System.out.println("The box's width is " + box.getWidth());
 
-        System.out.println("Thebos's length is " + box2.getLength());
+        System.out.println("The box's length is " + box2.getLength());
+        System.out.println("The box's area is " + box.getArea());
         System.out.println(box.getClass());
     }
 

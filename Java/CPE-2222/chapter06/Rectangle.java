@@ -5,6 +5,17 @@ public class Rectangle {
     private double width;
     private String color;
 
+    public Rectangle() {
+        length = 1.0;
+        width = 1.0;
+    }
+
+    public Rectangle(double len, double w, String c) {
+        length = len;
+        width = w;
+        color = c;
+    }
+
     public double getLength() {
         return length;
     }
@@ -27,6 +38,10 @@ public class Rectangle {
 
     public void setColor(String color) {
         this.color = color;
+    }
+
+    public Double getArea() {
+        return this.length * this.width;
     }
 
 }
