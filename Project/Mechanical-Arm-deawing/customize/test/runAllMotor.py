@@ -7,8 +7,8 @@ ser = lewansoul_lx16a.ServoController(serial.Serial(port='COM4', baudrate=115200
 
 # กำหนดขอบเขตสำหรับเซอร์โวแต่ละตัว (แยกตาม ID)
 servo_limits = {
-    1: {'min_position': 200, 'max_position': 800},  # ขอบเขตสำหรับเซอร์โว ID 1
-    2: {'min_position': 100, 'max_position': 600},  # ขอบเขตสำหรับเซอร์โว ID 2
+    1: {'min_position': 390, 'max_position': 500},  # ขอบเขตสำหรับเซอร์โว ID 1
+    2: {'min_position': 300, 'max_position': 600},  # ขอบเขตสำหรับเซอร์โว ID 2
     3: {'min_position': 300, 'max_position': 900},  # ขอบเขตสำหรับเซอร์โว ID 3
     4: {'min_position': 150, 'max_position': 850}   # ขอบเขตสำหรับเซอร์โว ID 4
 }
