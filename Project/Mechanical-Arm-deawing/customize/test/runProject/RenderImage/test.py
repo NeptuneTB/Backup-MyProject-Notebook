@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from testRenderImage import sobel_filters, non_max_suppression, threshold, hysteresis
+from cannyEdge import sobel_filters, non_max_suppression, threshold, hysteresis
 
 # โหลดภาพและแปลงเป็นขาวดำ (Grayscale)
 img = cv2.imread('')

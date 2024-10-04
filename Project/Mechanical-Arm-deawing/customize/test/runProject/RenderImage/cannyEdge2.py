@@ -1,11 +1,10 @@
 import numpy as np
+from scipy import ndimage
 import cv2
-# import argparse
-
-from sobel import sobel_edge_detection
-from gaussian_smoothing import gaussian_blur
-
 import matplotlib.pyplot as plt
+from imagePointer import get_edge_coordinates, save_edge_coordinates_to_json
+from gaussian_smoothing import gaussian_blur
+from sobel import sobel_edge_detection
 
 
 def non_max_suppression(gradient_magnitude, gradient_direction):
@@ -133,45 +132,84 @@ def hysteresis(image, weak):
 
     return final_image
 
+# def canny_edge_detection(image, sigma=1, low_threshold_ratio=0.05, high_threshold_ratio=0.09):
+#     """ทำ Canny Edge Detection"""
+#     # 1. ลดสัญญาณรบกวนด้วย Gaussian filter
+#     kernel = gaussian_kernel(size=5, sigma=sigma)
+#     smoothed = ndimage.convolve(image, kernel)
+#
+#     # 2. หา gradient
+#     gradient, theta = sobel_filters(smoothed)
+#
+#     # 3. Non-maximum suppression
+#     nms = non_max_suppression(gradient, theta)
+#
+#     # 4. Double thresholding
+#     thresholded, weak, strong = threshold(nms, low_threshold_ratio, high_threshold_ratio)
+#
+#     # 5. Edge tracking by hysteresis
+#     final = hysteresis(thresholded, weak, strong)
+#
+#     return final
 
-if __name__ == '__main__':
-    # ap = argparse.ArgumentParser()
-    # ap.add_argument("-i", "--image", required=True, help="Path to the image")
-    # ap.add_argument("-v", "--verbose", type=bool, default=False, help="Path to the image")
-    # args = vars(ap.parse_args())
 
-    # image = cv2.imread(args["image"])
-    image = cv2.imread("Image/cat3.jpg")
-    print(image.shape)
+# อ่านภาพ
+image = cv2.imread("lena01.png")
+
+# ตรวจสอบว่าอ่านภาพสำเร็จหรือไม่
+if image is None:
+    print("Unable to read image file. Please check file name and location.")
+else:
+    cv2.imshow("Original Image", image)
     resize = np.array(image)
-    # resize = cv2.resize(image, (115, 110), cv2.INTER_CUBIC)
-    cv2.imshow("Resized Image", resize)
-
-    # plt.imshow(image, cmap='gray')
-    # plt.title("Original Image")
-    # plt.show()
 
     blurred_image = gaussian_blur(resize, kernel_size=9, verbose=False)
 
     edge_filter = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
 
-    # gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True,
-    #                                                              verbose=args["verbose"])
     gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True)
 
-    # new_image = non_max_suppression(gradient_magnitude, gradient_direction, verbose=args["verbose"])
     new_image = non_max_suppression(gradient_magnitude, gradient_direction)
 
     weak = 50
 
-    # new_image = threshold(new_image, 5, 20, weak=weak, verbose=args["verbose"])
     new_image = threshold(new_image, 5, 20, weak=weak)
     new_image = hysteresis(new_image, weak)
 
-    cv2.imshow('Resize edge image', new_image)  # INTER_NEAREST
-    # cv2.imwrite('sizeOutput1.png', new_image, (115, 100))
-    # plt.imshow(new_image, cmap='gray')
-    # plt.title("Canny Edge Detector")
-    # plt.show()
+    cv2.imshow('Resize edge image', new_image)
 
-# cv2.waitKey(10)
+    cv2.waitKey(0)
+
+    edge_coords = get_edge_coordinates(new_image)
+    save_edge_coordinates_to_json(edge_coords)
+
+    # # แปลงภาพเป็นขาวดำ (Grayscale)
+    # gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #
+    # # ใช้งาน Canny Edge Detection
+    # edges = canny_edge_detection(gray_image)
+    #
+    # # เก็บตำแหน่งจุดขอบ (ถ้าต้องการ)
+    # # edge_coords = get_edge_coordinates(edges)
+    #
+    # # บันทึกพิกัดจุดขอบลงในไฟล์ .json (ถ้าต้องการ)
+    # # save_edge_coordinates_to_json(edge_coords)
+    #
+    # # แปลงภาพจาก BGR เป็น RGB สำหรับการแสดงผลด้วย matplotlib
+    # image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #
+    # # แสดงผลลัพธ์
+    # plt.figure(figsize=(12, 6))
+    #
+    # plt.subplot(121)
+    # plt.imshow(image_rgb)
+    # plt.title('Original Image')
+    # plt.axis('off')
+    #
+    # plt.subplot(122)
+    # plt.imshow(edges, cmap='gray')
+    # plt.title('Canny Edge Detection')
+    # plt.axis('off')
+    #
+    # plt.tight_layout()
+    # plt.show()

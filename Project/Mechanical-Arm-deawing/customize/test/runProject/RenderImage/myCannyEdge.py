@@ -2,8 +2,8 @@ import numpy as np
 import cv2
 # import argparse
 
-from sobel import sobel_edge_detection
-from gaussian_smoothing import gaussian_blur
+import project.sobel as sobel
+import project.gaussian_smoothing as gaussian
 
 import matplotlib.pyplot as plt
 
@@ -133,45 +133,64 @@ def hysteresis(image, weak):
 
     return final_image
 
+# อ่านภาพตัวอย่าง
+img = cv2.imread('lena_square_half.png', 0)
 
-if __name__ == '__main__':
-    # ap = argparse.ArgumentParser()
-    # ap.add_argument("-i", "--image", required=True, help="Path to the image")
-    # ap.add_argument("-v", "--verbose", type=bool, default=False, help="Path to the image")
-    # args = vars(ap.parse_args())
+# ขั้นตอนการใช้ Sobel Filter เพื่อตรวจจับขอบ
+blurred = cv2.GaussianBlur(img, (5, 5), 1.4)
+gradient, theta = sobel.sobel_edge_detection()
+nms_img = non_max_suppression(gradient, theta)
+threshold_img, weak, strong = threshold(nms_img)
+final_img = hysteresis(threshold_img, weak, strong)
 
-    # image = cv2.imread(args["image"])
-    image = cv2.imread("Image/cat3.jpg")
-    print(image.shape)
-    resize = np.array(image)
-    # resize = cv2.resize(image, (115, 110), cv2.INTER_CUBIC)
-    cv2.imshow("Resized Image", resize)
+# แสดงภาพก่อนและหลังการแปลงภาพเป็นเส้น
+plt.figure(figsize=(10,5))
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title('Original Image')
 
-    # plt.imshow(image, cmap='gray')
-    # plt.title("Original Image")
-    # plt.show()
+plt.subplot(1, 2, 2)
+plt.imshow(final_img, cmap='gray')
+plt.title('Edge Detected Image')
 
-    blurred_image = gaussian_blur(resize, kernel_size=9, verbose=False)
+plt.show()
 
-    edge_filter = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
 
-    # gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True,
-    #                                                              verbose=args["verbose"])
-    gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True)
-
-    # new_image = non_max_suppression(gradient_magnitude, gradient_direction, verbose=args["verbose"])
-    new_image = non_max_suppression(gradient_magnitude, gradient_direction)
-
-    weak = 50
-
-    # new_image = threshold(new_image, 5, 20, weak=weak, verbose=args["verbose"])
-    new_image = threshold(new_image, 5, 20, weak=weak)
-    new_image = hysteresis(new_image, weak)
-
-    cv2.imshow('Resize edge image', new_image)  # INTER_NEAREST
-    # cv2.imwrite('sizeOutput1.png', new_image, (115, 100))
-    # plt.imshow(new_image, cmap='gray')
-    # plt.title("Canny Edge Detector")
-    # plt.show()
-
-# cv2.waitKey(10)
+# if __name__ == '__main__':
+#     # ap = argparse.ArgumentParser()
+#     # ap.add_argument("-i", "--image", required=True, help="Path to the image")
+#     # ap.add_argument("-v", "--verbose", type=bool, default=False, help="Path to the image")
+#     # args = vars(ap.parse_args())
+#
+#     # image = cv2.imread(args["image"])
+#     image = cv2.imread("Image/8910.jpg")
+#     print(image.shape)
+#     resize = cv2.resize(image, (115, 110), cv2.INTER_CUBIC)
+#     cv2.imshow("Resized Image", resize)
+#
+#     plt.imshow(image, cmap='gray')
+#     plt.title("Original Image")
+#     plt.show()
+#
+#     blurred_image = gaussian_blur(image, kernel_size=9, verbose=False)
+#
+#     edge_filter = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+#
+#     # gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True,
+#     #                                                              verbose=args["verbose"])
+#     gradient_magnitude, gradient_direction = sobel_edge_detection(blurred_image, edge_filter, convert_to_degree=True)
+#
+#     # new_image = non_max_suppression(gradient_magnitude, gradient_direction, verbose=args["verbose"])
+#     new_image = non_max_suppression(gradient_magnitude, gradient_direction)
+#
+#     weak = 50
+#
+#     # new_image = threshold(new_image, 5, 20, weak=weak, verbose=args["verbose"])
+#     new_image = threshold(new_image, 5, 20, weak=weak)
+#     new_image = hysteresis(new_image, weak)
+#
+#     cv2.imshow('Resize edge image', cv2.resize(new_image, (115, 100), cv2.INTER_CUBIC))  # INTER_NEAREST
+#     cv2.imwrite('sizeOutput1.png', new_image, (115, 100))
+#     plt.imshow(new_image, cmap='gray')
+#     plt.title("Canny Edge Detector")
+#     plt.show()

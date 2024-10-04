@@ -76,17 +76,17 @@ for cole in dataframe1.iter_cols(1, 1):
 
 #==========Get Image======================
 
-image = cv2.imread("Image/cat3.jpg")
+image = cv2.imread("Image/lena_square_half.png")
 # image = cv2.imread("Image/test.png")
 # image = cv2.imread("Image/test2.png")
 image = np.array(image)
 # print(image.shape)
 # resize = cv2.resize(image, (115, 110))
-resize = image
-cv2.imshow("Resized Image", resize)
+# resize = image
+# cv2.imshow("Resized Image", resize)
 
 # plt.imshow(image, cmap='gray')
-cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
+# cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
 cv2.imshow("Original Image", image)
 # plt.show()
 
@@ -106,12 +106,12 @@ weak = 50
 # new_image = threshold(new_image, 5, 20, weak=weak, verbose=args["verbose"])
 new_image = threshold(new_image, 5, 20, weak=weak)
 new_image = hysteresis(new_image, weak)
-cv2.namedWindow("Edge Image", cv2.WINDOW_NORMAL)
+# cv2.namedWindow("Edge Image", cv2.WINDOW_NORMAL)
 cv2.imshow("Edge Image", new_image)
 
 newSize_image = cv2.resize(new_image, (2*wd, ht))
-cv2.namedWindow("New Edge Image", cv2.WINDOW_NORMAL)
-cv2.imshow("New Edge Image", newSize_image)
+# cv2.namedWindow("New Edge Image", cv2.WINDOW_NORMAL)
+# cv2.imshow("New Edge Image", newSize_image)
 
 cv2.waitKey(5)
 posPix = np.array(np.nonzero(newSize_image[:, 0:wd]))

@@ -2,15 +2,16 @@ import serial
 import time
 import lewansoul_lx16a
 import numpy as np
+from RenderImage.imagePointer import load_edge_coordinates
 
 ser = lewansoul_lx16a.ServoController(serial.Serial(port='COM4', baudrate=115200, timeout=1))
 
 # กำหนดขอบเขตสำหรับเซอร์โวแต่ละตัว (แยกตาม ID)
 servo_limits = {
     1: {'min_position': 390, 'max_position': 500},  # ขอบเขตสำหรับเซอร์โว ID 1
-    2: {'min_position': 300, 'max_position': 600},  # ขอบเขตสำหรับเซอร์โว ID 2
-    3: {'min_position': 300, 'max_position': 900},  # ขอบเขตสำหรับเซอร์โว ID 3
-    4: {'min_position': 150, 'max_position': 850}   # ขอบเขตสำหรับเซอร์โว ID 4
+    2: {'min_position': 50, 'max_position': 380},  # ขอบเขตสำหรับเซอร์โว ID 2
+    3: {'min_position': 0, 'max_position': 500},  # ขอบเขตสำหรับเซอร์โว ID 3
+    4: {'min_position': 700, 'max_position': 750}   # ขอบเขตสำหรับเซอร์โว ID 4
 }
 
 # ฟังก์ชันเคลื่อนเซอร์โวแต่ละตัว โดยตรวจสอบขอบเขตก่อน
@@ -32,4 +33,5 @@ def move_servo_in_limit(servo_id, position):
     # เคลื่อนเซอร์โวไปยังตำแหน่งที่กำหนด (หลังจากตรวจสอบขอบเขต)
     ser.move(servo_id, position)
 
-def controlServo():
+def logicMotor():
+    pointX, pointY = load_edge_coordinates()
