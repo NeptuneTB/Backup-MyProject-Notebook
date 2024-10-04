@@ -1,5 +1,6 @@
 import numpy as np
 import json
+import os
 
 def get_edge_coordinates(edge_image):
     # หาพิกัดของพิกเซลที่เป็นขอบ
@@ -17,10 +18,22 @@ def save_edge_coordinates_to_json(edge_coords, filename='pointer.json'):
 
     print(f"บันทึกพิกัดจุดขอบลงในไฟล์ {filename} สำเร็จ")
 
-def load_edge_coordinates(filename='pointer.json'):
+def load_edge_coordinates(filename='RenderImage\pointer.json'):
+    # ตรวจสอบ path ของไฟล์
+    file_path = os.path.join(os.getcwd(), filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
     with open(filename, 'r') as f:
         data = json.load(f)
 
     pointX = [point['x'] for point in data['edges']]
     pointY = [point['y'] for point in data['edges']]
     return pointX, pointY
+
+if __name__ == "__main__":
+    x, y = load_edge_coordinates()
+
+    for x, y in zip(x, y):
+        print(f'x = {x}, y = {y}')

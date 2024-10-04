@@ -4,7 +4,8 @@ import lewansoul_lx16a
 import numpy as np
 from RenderImage.imagePointer import load_edge_coordinates
 
-ser = lewansoul_lx16a.ServoController(serial.Serial(port='COM4', baudrate=115200, timeout=1))
+# ser = lewansoul_lx16a.ServoController(serial.Serial(port='COM4', baudrate=115200, timeout=1))
+# serial = serial.Serial(port='COM3', baudrate=115200, timeout=1)
 
 # กำหนดขอบเขตสำหรับเซอร์โวแต่ละตัว (แยกตาม ID)
 servo_limits = {
@@ -35,3 +36,9 @@ def move_servo_in_limit(servo_id, position):
 
 def logicMotor():
     pointX, pointY = load_edge_coordinates()
+
+    for x, y in zip(pointX, pointY):
+        print(f'x = {x}, y = {y}')
+
+if __name__ == "__main__":
+    logicMotor()
