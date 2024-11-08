@@ -1,0 +1,91 @@
+import cv2
+import numpy as np
+import serial
+
+ser = serial.Serial(
+        port='COM3', #Set ให้ตรงกับที่เราใช้
+        baudrate=1000000, #Set ให้ตรงกับที่เราใช้
+        parity=serial.PARITY_NONE, #Set ให้ตรงกับที่เราใช้
+        stopbits=serial.STOPBITS_ONE, #Set ให้ตรงกับที่เราใช้
+        bytesize=serial.EIGHTBITS #Set ให้ตรงกับที่เราใช้
+    )
+
+if not ser.isOpen():
+    ser.open()
+    print('Enter your commands below.\r\nInsert "exit" to leave the application.')
+
+# trackbar callback fucntion does nothing but required for trackbar
+def nothing(x):
+
+    pass
+
+# create a seperate window named 'controls' for trackbar
+cv2.namedWindow('controls')
+# create trackbar in 'controls' window with name 'r'
+cv2.createTrackbar('r1', 'controls', 0, 180, nothing)
+cv2.setTrackbarPos('r1', 'controls', 90)
+
+cv2.createTrackbar('r2', 'controls', 0, 180, nothing)
+cv2.setTrackbarPos('r2', 'controls', 90)
+
+cv2.createTrackbar('r3', 'controls', 0, 180, nothing)
+cv2.setTrackbarPos('r3', 'controls', 90)
+
+cv2.createTrackbar('r4', 'controls', 0, 180, nothing)
+cv2.setTrackbarPos('r4', 'controls', 90)
+
+
+ang1o = 0
+ang2o = 0
+ang3o = 0
+ang4o = 0
+
+txt = ""
+
+# create a while loop act as refresh for the view
+while (1):
+
+    # create a black image
+    # img = np.zeros((512, 512, 3), np.uint8)
+    # # calculate center of image
+    # img_center_y = img.shape[0] // 2
+    # img_center_x = img.shape[1] // 2
+
+    # returns current position/value of trackbar
+    # ang มุมองศา servo
+    ang1 = int(cv2.getTrackbarPos('r1', 'controls'))
+    ang2 = int(cv2.getTrackbarPos('r2', 'controls'))
+    ang3 = int(cv2.getTrackbarPos('r3', 'controls'))
+    ang4 = int(cv2.getTrackbarPos('r4', 'controls'))
+
+    if ang1 != ang1o :
+        txt = "M1A" + str(ang1)
+        ang1o = ang1
+
+    if ang2 != ang2o :
+        txt = "M2A" + str(ang2)
+        ang2o = ang2
+
+    if ang3 != ang3o :
+        txt = "M3A" + str(ang3)
+        ang3o = ang3
+
+    if ang4 != ang4o :
+        txt = "M4A" + str(ang4)
+        ang4o = ang4
+
+    ser.write(txt.encode('ascii'))
+    ser.write(b'\n')
+    # draw a red circle in the center of the image with radius set by trackbar position
+    # cv2.circle(img, (img_center_y, img_center_x), radius, (0, 0, 255), -1)
+    # # show the image window
+    # cv2.imshow('img', img)
+    print("ang1 :",ang1,"ang2 :",ang2, "ang3 :", ang3, "ang4 :", ang4)
+
+    # waitfor the user to press escape and break the while loop
+    k = cv2.waitKey(1) & 0xFF
+    if k == 27:
+        break
+
+# destroys all window
+cv2.destroyAllWindows()
