@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Weather Data</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+
+        function setTopic() {
+            var topic = document.getElementById("topic").value;
+            socket.emit('set_topic', { topic: topic });
+        }
+
+        function sendMessage() {
+            var topic = document.getElementById("topic").value;
+            var message = document.getElementById("message").value;
+            socket.emit('send_message', { topic: topic, message: message });
+        }
+
+        socket.on('message', function(data) {
+            alert("Received message: " + data);
+        });
+    </script>
+</head>
+<body>
+    <h1>MQTT Weather Data</h1>
+    
+    <!-- Input to set the topic -->
+    <div>
+        <label for="topic">Topic:</label>
+        <input type="text" id="topic" placeholder="Enter topic">
+        <button onclick="setTopic()">Set Topic</button>
+    </div>
+    
+    <!-- Input to send messages -->
+    <div>
+        <label for="message">Message:</label>
+        <input type="text" id="message" placeholder="Enter message">
+        <button onclick="sendMessage()">Send Message</button>
+    </div>
+
+    <h2>Latest Data</h2>
+    <p>Temperature: {{ data.temperature }}°C</p>
+    <p>Weather Condition: {{ data.weather_condition }}</p>
+</body>
+</html>
