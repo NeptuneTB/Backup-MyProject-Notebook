@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 from bson.objectid import ObjectId
 import json
+import threading
 
 # MongoDB connection
 client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -26,9 +27,9 @@ async def receive_machine_data(api_key):
             except Exception as e:
                 print(f"Error saving data: {e}")
 
-def run_websocket_client():
+def start_websocket_client():
     api_key = "670a935a14221a12ae886117c99cacc7"
-    asyncio.get_event_loop().run_until_complete(receive_machine_data(api_key))
+    asyncio.run(receive_machine_data(api_key))
 
 # Flask API server
 app = Flask(__name__)
@@ -74,6 +75,9 @@ def delete_machine_data(id):
         return jsonify({'error': 'Machine data not found'}), 404
 
 # Single webpage with real-time chart
+# The Flask server and the WebSocket client code remain the same.
+# Update the HTML and JavaScript in the `index()` route:
+
 @app.route('/')
 def index():
     return '''
@@ -91,13 +95,57 @@ def index():
                 var ws;
                 var chartData = {
                     labels: [],
-                    datasets: [{
-                        label: 'Temperature',
-                        data: [],
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
+                    datasets: [
+                        {
+                            label: 'Power',
+                            data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'L1-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'L2-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'L3-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Pressure',
+                            data: [],
+                            backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Force',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Position of the Punch',
+                            data: [],
+                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 1
+                        }
+                    ]
                 };
 
                 var myChart = new Chart(document.getElementById('myChart'), {
@@ -122,8 +170,20 @@ def index():
                     };
                     ws.onmessage = function(event) {
                         var data = JSON.parse(event.data);
-                        chartData.labels.push(data.timestamp);
-                        chartData.datasets[0].data.push(data.temperature);
+
+                        var timestamp = new Date(data.timestamp).toLocaleTimeString();
+                        chartData.labels.push(timestamp);
+                        
+                        // Adding data points to each dataset
+                        chartData.datasets[0].data.push(data["Energy Consumption"].Power);
+                        chartData.datasets[1].data.push(data.Voltage["L1-GND"]);
+                        chartData.datasets[2].data.push(data.Voltage["L2-GND"]);
+                        chartData.datasets[3].data.push(data.Voltage["L3-GND"]);
+                        chartData.datasets[4].data.push(data.Pressure);
+                        chartData.datasets[5].data.push(data.Force);
+                        chartData.datasets[6].data.push(data["Position of the Punch"]);
+
+                        // Update the chart
                         myChart.update();
                     };
                 }
@@ -135,5 +195,9 @@ def index():
     '''
 
 if __name__ == '__main__':
-    run_websocket_client()
+    # Start the WebSocket client in a separate thread
+    websocket_thread = threading.Thread(target=start_websocket_client)
+    websocket_thread.start()
+
+    # Start the Flask app
     app.run(debug=True)
