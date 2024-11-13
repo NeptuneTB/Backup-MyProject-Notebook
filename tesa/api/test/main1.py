@@ -85,71 +85,82 @@ def index():
         <html>
         <head>
             <title>Machine Monitoring Dashboard</title>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         </head>
         <body>
             <h1>Machine Monitoring Dashboard</h1>
-
-            <!-- Separate canvases for each metric -->
-            <h2>Power</h2>
-            <canvas id="powerChart"></canvas>
-            
-            <h2>L1-GND Voltage</h2>
-            <canvas id="voltageL1Chart"></canvas>
-
-            <h2>L2-GND Voltage</h2>
-            <canvas id="voltageL2Chart"></canvas>
-
-            <h2>L3-GND Voltage</h2>
-            <canvas id="voltageL3Chart"></canvas>
-
-            <h2>Pressure</h2>
-            <canvas id="pressureChart"></canvas>
-
-            <h2>Force</h2>
-            <canvas id="forceChart"></canvas>
-
-            <h2>Position of the Punch</h2>
-            <canvas id="positionChart"></canvas>
+            <canvas id="myChart"></canvas>
 
             <script>
                 var ws;
-                var timeLabels = [];
-
-                // Create chart configurations
-                var createChartConfig = function(label, borderColor, backgroundColor) {
-                    return {
-                        type: 'line',
-                        data: {
-                            labels: timeLabels,
-                            datasets: [{
-                                label: label,
-                                data: [],
-                                borderColor: borderColor,
-                                backgroundColor: backgroundColor,
-                                borderWidth: 1
-                            }]
+                var chartData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Power',
+                            data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
+                        {
+                            label: 'L1-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'L2-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'L3-GND Voltage',
+                            data: [],
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Pressure',
+                            data: [],
+                            backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Force',
+                            data: [],
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Position of the Punch',
+                            data: [],
+                            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                            borderColor: 'rgba(255, 159, 64, 1)',
+                            borderWidth: 1
                         }
-                    };
+                    ]
                 };
 
-                // Initialize charts
-                var powerChart = new Chart(document.getElementById('powerChart'), createChartConfig('Power', 'rgba(255, 99, 132, 1)', 'rgba(255, 99, 132, 0.2)'));
-                var voltageL1Chart = new Chart(document.getElementById('voltageL1Chart'), createChartConfig('L1-GND Voltage', 'rgba(54, 162, 235, 1)', 'rgba(54, 162, 235, 0.2)'));
-                var voltageL2Chart = new Chart(document.getElementById('voltageL2Chart'), createChartConfig('L2-GND Voltage', 'rgba(75, 192, 192, 1)', 'rgba(75, 192, 192, 0.2)'));
-                var voltageL3Chart = new Chart(document.getElementById('voltageL3Chart'), createChartConfig('L3-GND Voltage', 'rgba(153, 102, 255, 1)', 'rgba(153, 102, 255, 0.2)'));
-                var pressureChart = new Chart(document.getElementById('pressureChart'), createChartConfig('Pressure', 'rgba(255, 206, 86, 1)', 'rgba(255, 206, 86, 0.2)'));
-                var forceChart = new Chart(document.getElementById('forceChart'), createChartConfig('Force', 'rgba(75, 192, 192, 1)', 'rgba(75, 192, 192, 0.2)'));
-                var positionChart = new Chart(document.getElementById('positionChart'), createChartConfig('Position of the Punch', 'rgba(255, 159, 64, 1)', 'rgba(255, 159, 64, 0.2)'));
+                var myChart = new Chart(document.getElementById('myChart'), {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
 
                 function connect() {
                     var apiKey = "670a935a14221a12ae886117c99cacc7";
@@ -157,52 +168,24 @@ def index():
                     ws.onopen = function(event) {
                         ws.send(apiKey);
                     };
-                    
-                    ws.onclose = function(event) {
-                        console.log("WebSocket closed, reconnecting...");
-                        setTimeout(connect, 1000); // Reconnect after 1 second
-                    };
-
-                    var MAX_POINTS = 50;
-
                     ws.onmessage = function(event) {
                         var data = JSON.parse(event.data);
+
                         var timestamp = new Date(data.timestamp).toLocaleTimeString();
+                        chartData.labels.push(timestamp);
                         
-                        if (timeLabels.length >= MAX_POINTS) {
-                            timeLabels.shift(); // Remove oldest label
-                            powerChart.data.datasets[0].data.shift();
-                            voltageL1Chart.data.datasets[0].data.shift();
-                            voltageL2Chart.data.datasets[0].data.shift();
-                            voltageL3Chart.data.datasets[0].data.shift();
-                            pressureChart.data.datasets[0].data.shift();
-                            forceChart.data.datasets[0].data.shift();
-                            positionChart.data.datasets[0].data.shift();
-                        }
+                        // Adding data points to each dataset
+                        chartData.datasets[0].data.push(data["Energy Consumption"].Power);
+                        chartData.datasets[1].data.push(data.Voltage["L1-GND"]);
+                        chartData.datasets[2].data.push(data.Voltage["L2-GND"]);
+                        chartData.datasets[3].data.push(data.Voltage["L3-GND"]);
+                        chartData.datasets[4].data.push(data.Pressure);
+                        chartData.datasets[5].data.push(data.Force);
+                        chartData.datasets[6].data.push(data["Position of the Punch"]);
 
-                        // Add new data points
-                        timeLabels.push(timestamp);
-                        powerChart.data.datasets[0].data.push(data["Energy Consumption"].Power);
-                        voltageL1Chart.data.datasets[0].data.push(data.Voltage["L1-GND"]);
-                        voltageL2Chart.data.datasets[0].data.push(data.Voltage["L2-GND"]);
-                        voltageL3Chart.data.datasets[0].data.push(data.Voltage["L3-GND"]);
-                        pressureChart.data.datasets[0].data.push(data.Pressure);
-                        forceChart.data.datasets[0].data.push(data.Force);
-                        positionChart.data.datasets[0].data.push(data["Position of the Punch"]);
-
-                        // Update each chart
-                        powerChart.update();
-                        voltageL1Chart.update();
-                        voltageL2Chart.update();
-                        voltageL3Chart.update();
-                        pressureChart.update();
-                        forceChart.update();
-                        positionChart.update();
+                        // Update the chart
+                        myChart.update();
                     };
-                }
-                
-                if (timeLabels.length > 50) {
-                    timeLabels.shift();
                 }
 
                 connect();
