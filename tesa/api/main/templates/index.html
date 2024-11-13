@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            margin-top: 20px;
+            height: 400px;
+        }
+        .auth-container {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <input type="text" id="apiKey" placeholder="Enter API Key">
+            <button onclick="authenticate()">Authenticate</button>
+        </div>
+        <div class="chart-container">
+            <canvas id="machineChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        let token = '';
+        const API_URL = 'http://localhost:8000';
+        const WS_URL = 'ws://technest.ddns.net:8001/ws';
+
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('machineChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature',
+                        borderColor: 'rgb(255, 99, 132)',
+                        data: []
+                    }, {
+                        label: 'Pressure',
+                        borderColor: 'rgb(54, 162, 235)',
+                        data: []
+                    }, {
+                        label: 'Speed',
+                        borderColor: 'rgb(75, 192, 192)',
+                        data: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'second'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Authentication
+        async function authenticate() {
+            const apiKey = document.getElementById('apiKey').value;
+            try {
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `username=test&password=${apiKey}`
+                });
+                const data = await response.json();
+                if (data.access_token) {
+                    token = data.access_token;
+                    connectWebSocket();
+                    alert('Authentication successful!');
+                }
+            } catch (error) {
+                console.error('Authentication error:', error);
+                alert('Authentication failed!');
+            }
+        }
+
+        // WebSocket Connection
+        function connectWebSocket() {
+            const ws = new WebSocket(WS_URL);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateChart(data);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        // Update Chart
+        function updateChart(data) {
+            const timestamp = new Date(data.timestamp);
+            
+            chart.data.labels.push(timestamp);
+            chart.data.datasets[0].data.push(data.temperature);
+            chart.data.datasets[1].data.push(data.pressure);
+            chart.data.datasets[2].data.push(data.speed);
+
+            // Keep only last 50 points
+            if (chart.data.labels.length > 50) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            chart.update();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initChart);
+    </script>
+</body>
+</html>
