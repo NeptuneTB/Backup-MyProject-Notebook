@@ -10,7 +10,7 @@ import logging
 from werkzeug.utils import secure_filename
 import re
 from functools import wraps
-import json
+import shutil
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,24 +19,16 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'audio_files'
 DATABASE = 'audio_data.sqlite'
 TEMP_ZIP_FOLDER = os.path.join(UPLOAD_FOLDER, 'zipfile')
-ALLOWED_EXTENSIONS = {}  # ระบุประเภทไฟล์ที่อนุญาต
-MAX_CONTENT_LENGTH = None  # ขนาดไฟล์สูงสุด 50 MB
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+ALLOWED_EXTENSIONS = {'mp3', 'wav', 'ogg'}
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
 
 # กำหนด API keys แยกตาม endpoint
 API_KEYS = {
     'upload': os.getenv('upload'),
     'list': os.getenv('list'),
     'download': os.getenv('download'),
-    'download_all': os.getenv('download_all'),
-    'data': os.getenv('data'),
-    'listdata': os.getenv('listdata')
+    'download_all': os.getenv('download_all')
 }
-
-# ตรวจสอบว่าค่า API key ได้รับจาก environment
-for key, value in API_KEYS.items():
-    if not value:
-        logger.warning(f"API key for {key} endpoint is missing")
 
 # ตั้งค่า logging
 logging.basicConfig(
@@ -49,7 +41,6 @@ logger = logging.getLogger(__name__)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(TEMP_ZIP_FOLDER, exist_ok=True)
 
-# ฟังก์ชันที่ใช้เพื่อตรวจสอบ API Key
 def require_api_key(key_type):
     def decorator(f):
         @wraps(f)
@@ -62,7 +53,6 @@ def require_api_key(key_type):
         return decorated_function
     return decorator
 
-# ตรวจสอบว่าไฟล์สามารถอัปโหลดได้หรือไม่
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -112,16 +102,7 @@ def init_database():
                 UNIQUE(file_path, device_id)
             );
         ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS sensor_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                device_id TEXT NOT NULL,
-                data TEXT NOT NULL
-            )
-        ''')
         conn.commit()
-        
 
 @app.route('/upload-audio', methods=['POST'])
 @require_api_key('upload')
@@ -175,8 +156,7 @@ def upload_audio():
     except Exception as e:
         logger.error(f"Error in upload_audio: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-    
-    
+
 @app.route('/list-audio-files', methods=['GET'])
 @require_api_key('list')
 def list_audio_files():
@@ -188,14 +168,14 @@ def list_audio_files():
             if device_id:
                 cursor.execute('''
                     SELECT file_path, timestamp, data_size, device_id 
-                    FROM audio_files
+                    FROM audio_files 
                     WHERE device_id = ?
                     ORDER BY timestamp DESC
                 ''', (device_id,))
             else:
                 cursor.execute('''
-                    SELECT file_path, timestamp, data_size, device_id
-                    FROM audio_files
+                    SELECT file_path, timestamp, data_size, device_id 
+                    FROM audio_files 
                     ORDER BY timestamp DESC
                 ''')
             
@@ -206,76 +186,12 @@ def list_audio_files():
                 "device_id": row['device_id']
             } for row in cursor.fetchall()]
 
+        logger.info(f"Audio files listed successfully for device: {device_id if device_id else 'all'}")
         return jsonify({"files": files}), 200
-    
+
     except Exception as e:
         logger.error(f"Error in list_audio_files: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-    
-
-@app.route('/upload-data', methods=['POST'])
-@require_api_key('data')
-def upload_data():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        device_id = data.get("device_id", "")
-        if not device_id or not validate_device_id(device_id):
-            return jsonify({"error": "Invalid device ID"}), 400
-
-        timestamp = datetime.now().isoformat()
-        data_json = json.dumps(data)
-
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO sensor_data (timestamp, device_id, data)
-                VALUES (?, ?, ?)
-            ''', (timestamp, device_id, data_json))
-            conn.commit()
-
-        logger.info(f"Data uploaded successfully for device: {device_id}")
-        return jsonify({"message": "Data uploaded successfully"}), 200
-
-    except Exception as e:
-        logger.error(f"Error in upload_data: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-@app.route('/list-data', methods=['GET'])
-@require_api_key('listdata')
-def list_data():
-    try:
-        device_id = request.args.get('device_id')
-        
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            if device_id:
-                cursor.execute('''
-                    SELECT timestamp, data 
-                    FROM sensor_data
-                    WHERE device_id = ?
-                    ORDER BY timestamp DESC
-                ''', (device_id,))
-            else:
-                cursor.execute('''
-                    SELECT timestamp, data
-                    FROM sensor_data
-                    ORDER BY timestamp DESC
-                ''')
-            
-            data = [
-                {"timestamp": row["timestamp"], "data": json.loads(row["data"])}
-                for row in cursor.fetchall()
-            ]
-
-        return jsonify({"data": data}), 200
-
-    except Exception as e:
-        logger.error(f"Error in list_data: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-    
 
 @app.route('/download-audio/<filename>', methods=['GET'])
 @require_api_key('download')
