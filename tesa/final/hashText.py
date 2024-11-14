@@ -9,7 +9,7 @@ def generate_secret_key_from_text(text):
     return secret_key
 
 # ตัวอย่างการใช้งาน
-text = "upload-audio"
+text = "list-data"
 secret_key = generate_secret_key_from_text(text)
 
 print("Secret Key:", secret_key)
