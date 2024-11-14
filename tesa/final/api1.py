@@ -18,14 +18,15 @@ TEMP_ZIP_FOLDER = os.path.join(UPLOAD_FOLDER, 'zipfile')
 os.makedirs(TEMP_ZIP_FOLDER, exist_ok=True)
 
 ENDPOINT_API_KEYS = {
-    'upload_audio': f'Bearer {os.getenv('upload')}',
-    'list_audio_files': f'Bearer {os.getenv('list')}',
-    'download_audio': f'Bearer {os.getenv('download')}',
-    'download_all_audio': f'Bearer {os.getenv('download_all')}',
-    'manual_cleanup': f'Bearer {os.getenv('manual_cleanup')}',
-    'upload_sensor_data': f'Bearer {os.getenv('data')}',
-    'get_sensor_data': f'Bearer {os.getenv('listdata')}'
+    "upload_audio": os.getenv('upload'),
+    "list_audio_files": os.getenv('list'),
+    "download_audio": os.getenv('download'),
+    "download_all_audio": os.getenv('download_all'),
+    "manual_cleanup": os.getenv('manual_cleanup'),
+    "upload_sensor_data": os.getenv('data'),
+    "get_sensor_data": os.getenv('listdata')
 }
+
 
 def init_database():
     try:
@@ -92,6 +93,7 @@ def save_to_database(table, **data):
 
 def validate_api_key(endpoint):
     api_key = request.headers.get('Authorization')
+    # app.logger.info(f"Received API key: {api_key}")
     return api_key == ENDPOINT_API_KEYS.get(endpoint)
 
 
@@ -153,7 +155,7 @@ def upload_sensor_data():
 @app.route('/get-sensor-data', methods=['GET'])
 def get_sensor_data():
     """Endpoint สำหรับดึงข้อมูล sensor data"""
-    if not validate_api_key('upload_sensor_data'):
+    if not validate_api_key('get_sensor_data'):
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
@@ -194,7 +196,14 @@ def upload_audio():
     timestamp = datetime.now().isoformat()
     data_size = os.path.getsize(file_path)
     device_id = request.form.get('device_id', 'unknown_device')
-    save_to_database(file_path, timestamp, data_size, device_id)
+    save_to_database(
+        table='audio_files',
+        file_path=file_path,
+        timestamp=timestamp,
+        data_size=data_size,
+        device_id=device_id
+    )
+
 
     return jsonify({"message": "File uploaded successfully"}), 200
 
