@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
-database_path = 'audio_data.db'  # Make sure this path is correct
-print(os.path.abspath(database_path))
+print(os.getenv('listdata'))
