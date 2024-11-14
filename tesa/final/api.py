@@ -5,8 +5,6 @@ from datetime import datetime
 import zipfile
 import tempfile
 import time
-from contextlib import contextmanager
-from datetime import datetime, timedelta
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'audio_files'  # โฟลเดอร์สำหรับเก็บไฟล์เสียง
@@ -141,77 +139,75 @@ def download_audio(filename):
     except FileNotFoundError:
         return jsonify({"error": "File not found"}), 404
     
-
-@app.route('/download-all-audio', methods=['GET']) 
+    
+@app.route('/download-all-audio', methods=['GET'])
 def download_all_audio():
-    """
-    Flask endpoint to download all audio files as a ZIP archive.
-    Requires API key authentication.
-    """
-    # ตรวจสอบ API key
+    # Verify API key
     api_key = request.headers.get('Authorization')
     if api_key != API_KEY:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # ทำความสะอาดไฟล์เก่าก่อน
-    cleanup_old_temp_files(TEMP_ZIP_FOLDER)
+    # Create temporary ZIP file
+    temp_zip = tempfile.NamedTemporaryFile(
+        dir=TEMP_ZIP_FOLDER,
+        suffix=".zip",
+        delete=False
+    )
 
     try:
-        # ใช้ context manager จัดการไฟล์ชั่วคราว
-        with managed_temp_file(directory=TEMP_ZIP_FOLDER) as temp_zip:
-            # สร้างไฟล์ ZIP
-            with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for root, dirs, files in os.walk(UPLOAD_FOLDER):
-                    for file in files:
-                        if file.endswith(('.mp3', '.wav', '.ogg')):  # เพิ่มการกรองไฟล์เสียง
-                            file_path = os.path.join(root, file)
-                            arc_path = os.path.relpath(file_path, UPLOAD_FOLDER)
-                            zipf.write(file_path, arc_path)
+        # Create ZIP archive with all audio files
+        with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(UPLOAD_FOLDER):
+                for file in files:
+                    # Skip the temporary ZIP file itself
+                    if file != os.path.basename(temp_zip.name):
+                        file_path = os.path.join(root, file)
+                        # Preserve relative path structure in ZIP
+                        arc_path = os.path.relpath(file_path, UPLOAD_FOLDER)
+                        zipf.write(file_path, arc_path)
 
-            # สร้าง response
-            try:
-                response = make_response(
-                    send_file(
-                        temp_zip.name,
-                        as_attachment=True,
-                        download_name=f"audio_files_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
-                        max_age=0
+        temp_zip.close()
+
+        # Define cleanup function to run after request
+        @after_this_request
+        def cleanup(response):
+            MAX_RETRIES = 3
+            RETRY_DELAY = 1  # seconds
+
+            for attempt in range(MAX_RETRIES):
+                try:
+                    os.unlink(temp_zip.name)
+                    app.logger.info(f"Successfully deleted temp ZIP: {temp_zip.name}")
+                    break
+                except PermissionError:
+                    app.logger.warning(
+                        f"Permission error deleting temp ZIP (attempt {attempt + 1}/{MAX_RETRIES})"
                     )
-                )
-                response.headers["Connection"] = "close"
-                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-                
-                # เพิ่ม callback สำหรับลบไฟล์หลังส่ง response
-                @after_this_request
-                def delete_temp_file(response):
-                    def delayed_delete():
-                        max_retries = 5
-                        for i in range(max_retries):
-                            try:
-                                if os.path.exists(temp_zip.name):
-                                    os.unlink(temp_zip.name)
-                                    app.logger.info(f"Successfully deleted temp file: {temp_zip.name}")
-                                return
-                            except Exception as e:
-                                if i == max_retries - 1:
-                                    app.logger.error(f"Final attempt to delete temp file failed: {e}")
-                                else:
-                                    app.logger.warning(f"Retry {i+1} failed to delete temp file: {e}")
-                                    time.sleep(1)
-                    
-                    # เริ่ม thread ใหม่สำหรับลบไฟล์
-                    from threading import Thread
-                    Thread(target=delayed_delete).start()
-                    return response
+                    if attempt < MAX_RETRIES - 1:
+                        time.sleep(RETRY_DELAY)
+                except Exception as e:
+                    app.logger.error(f"Failed to delete temp ZIP: {str(e)}")
+                    break
+            return response
 
-                return response
-
-            except Exception as e:
-                app.logger.error(f"Error sending file: {e}")
-                raise
+        # Prepare and send response
+        response = make_response(
+            send_file(
+                temp_zip.name,
+                as_attachment=True,
+                download_name="audio_files.zip"  # Added explicit download name
+            )
+        )
+        response.headers["Connection"] = "close"
+        return response
 
     except Exception as e:
-        app.logger.error(f"Error creating ZIP file: {e}")
+        app.logger.error(f"Failed to create ZIP archive: {str(e)}")
+        # Clean up temp file if it exists
+        try:
+            os.unlink(temp_zip.name)
+        except Exception as cleanup_error:
+            app.logger.error(f"Failed to clean up temp ZIP after error: {str(cleanup_error)}")
         return jsonify({"error": "Internal Server Error"}), 500
 
 
