@@ -8,6 +8,9 @@ import time
 from contextlib import contextmanager
 import json
 from dotenv import load_dotenv
+import base64
+import gzip
+import io
 load_dotenv()
 
 app = Flask(__name__)
@@ -183,29 +186,75 @@ def upload_audio():
     if not validate_api_key('upload_audio'):
         return jsonify({"error": "Unauthorized"}), 401
 
-    if 'file' not in request.files or request.files['file'].filename == '':
-        return jsonify({"error": "No file uploaded"}), 400
+    # ตรวจสอบว่ามี JSON payload หรือไม่
+    if request.is_json:
+        data = request.get_json()
+        encoded_file = data.get('file')
 
-    file = request.files['file']
-    filename = file.filename
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
-    file.save(file_path)
+        if not encoded_file:
+            return jsonify({"error": "No file data in request"}), 400
 
-    timestamp = datetime.now().isoformat()
-    data_size = os.path.getsize(file_path)
-    device_id = request.form.get('device_id', 'unknown_device')
-    save_to_database(
-        table='audio_files',
-        file_path=file_path,
-        timestamp=timestamp,
-        data_size=data_size,
-        device_id=device_id
-    )
+        try:
+            # ถอดรหัส Base64
+            compressed_data = base64.b64decode(encoded_file)
+            
+            # คลายบีบอัด Gzip
+            with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz:
+                file_data = gz.read()
 
+            # บันทึกไฟล์
+            filename = f"audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
 
-    return jsonify({"message": "File uploaded successfully"}), 200
+            with open(file_path, 'wb') as file:
+                file.write(file_data)
+
+            # บันทึกข้อมูลลงฐานข้อมูล
+            timestamp = datetime.now().isoformat()
+            data_size = len(file_data)
+            device_id = request.form.get('device_id', 'unknown_device')
+
+            save_to_database(
+                table='audio_files',
+                file_path=file_path,
+                timestamp=timestamp,
+                data_size=data_size,
+                device_id=device_id
+            )
+
+            return jsonify({"message": "File uploaded and decoded successfully"}), 200
+
+        except Exception as e:
+            app.logger.error(f"Error decoding or saving file: {e}")
+            return jsonify({"error": "Failed to process file"}), 500
+
+    # กรณีที่รับไฟล์แบบ multipart/form-data
+    elif 'file' in request.files:
+        file = request.files['file']
+        filename = file.filename
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER)
+
+        file.save(file_path)
+
+        timestamp = datetime.now().isoformat()
+        data_size = os.path.getsize(file_path)
+        device_id = request.form.get('device_id', 'unknown_device')
+
+        save_to_database(
+            table='audio_files',
+            file_path=file_path,
+            timestamp=timestamp,
+            data_size=data_size,
+            device_id=device_id
+        )
+
+        return jsonify({"message": "File uploaded successfully"}), 200
+
+    return jsonify({"error": "No file uploaded"}), 400
+
 
 @app.route('/list-audio-files', methods=['GET'])
 def list_audio_files():

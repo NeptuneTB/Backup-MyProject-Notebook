@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Machine Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+
+    <style>
+      /* Light theme (default) */
+      body.light-theme {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f9;
+        color: #333;
+      }
+
+      /* Dark theme */
+      body.dark-theme {
+        font-family: Arial, sans-serif;
+        background-color: #333;
+        color: #f4f4f9;
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      h2 {
+        margin: 20px 0 10px 10px;
+      }
+
+      /* Card styles */
+      .card-container {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 20px auto;
+        max-width: 1200px;
+      }
+
+      .card {
+        flex: 1 1 150px;
+        max-width: 200px;
+        margin: 10px;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      /* Light and dark theme-specific card colors */
+      .light-theme .card {
+        background-color: #f9f9f9;
+        color: #333;
+        border: 1px solid #ddd;
+      }
+
+      .dark-theme .card {
+        background-color: #555;
+        color: #f9f9f9;
+        border: 1px solid #666;
+      }
+
+      /* Chart container styling */
+      .chart-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        max-width: 1200px;
+        margin: auto;
+        padding: 20px;
+      }
+
+      .chart {
+        padding: 20px;
+        border-radius: 8px;
+        transition: background-color 0.3s;
+      }
+
+      .light-theme .chart {
+        background-color: #ffffff;
+        border: 1px solid #ddd;
+      }
+
+      .dark-theme .chart {
+        background-color: #444;
+        border: 1px solid #666;
+      }
+
+      canvas {
+        width: 100% !important;
+        height: 300px !important;
+      }
+
+      /* Theme toggle button */
+      .theme-toggle,
+      .plot-toggle {
+        display: block;
+        margin: 10px auto;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 16px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+      }
+
+      .theme-toggle:hover,
+      .plot-toggle:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+
+  <body class="light-theme">
+    <h1>Machine Monitoring Dashboard</h1>
+    <button class="theme-toggle" onclick="toggleTheme()">ปรับสีธีม</button>
+    <button class="plot-toggle" onclick="togglePlot()">เริ่ม Plot กราฟ</button>
+
+    <!-- Status cards for each metric -->
+    <div class="card-container">
+      <div class="card">
+        <h3>Power</h3>
+        <p id="powerStatus">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>L1-GND Voltage</h3>
+        <p id="voltageL1Status">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>L2-GND Voltage</h3>
+        <p id="voltageL2Status">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>L3-GND Voltage</h3>
+        <p id="voltageL3Status">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>Pressure</h3>
+        <p id="pressureStatus">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>Force</h3>
+        <p id="forceStatus">Loading...</p>
+      </div>
+      <div class="card">
+        <h3>Position of the Punch</h3>
+        <p id="positionStatus">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Charts for each metric in a grid layout -->
+    <div class="chart-container">
+      <div class="chart">
+        <h2>Power</h2>
+        <canvas id="powerChart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>L1-GND Voltage</h2>
+        <canvas id="voltageL1Chart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>L2-GND Voltage</h2>
+        <canvas id="voltageL2Chart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>L3-GND Voltage</h2>
+        <canvas id="voltageL3Chart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>Pressure</h2>
+        <canvas id="pressureChart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>Force</h2>
+        <canvas id="forceChart"></canvas>
+      </div>
+      <div class="chart">
+        <h2>Position of the Punch</h2>
+        <canvas id="positionChart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      var ws;
+      var timeLabels = [];
+      var isPlotting = false;
+
+      function toggleTheme() {
+        document.body.classList.toggle("dark-theme");
+        document.body.classList.toggle("light-theme");
+      }
+
+      function togglePlot() {
+        isPlotting = !isPlotting;
+        document.querySelector(".plot-toggle").innerText = isPlotting
+          ? "หยุด Plot กราฟ"
+          : "เริ่ม Plot กราฟ";
+      }
+
+      function calculateYAxisRange(data) {
+        if (data.length === 0) return { min: 0, max: 100 };
+
+        const values = data.map((v) => parseFloat(v));
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const stdDev = Math.sqrt(
+          values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length
+        );
+
+        return {
+          min: Math.max(0, mean - 2 * stdDev),
+          max: mean + 2 * stdDev,
+        };
+      }
+
+      var createChartConfig = function (
+        label,
+        borderColor,
+        backgroundColor,
+        minY = 0,
+        maxY = 100
+      ) {
+        return {
+          type: "line",
+          data: {
+            labels: timeLabels,
+            datasets: [
+              {
+                label: label,
+                data: [],
+                backgroundColor: backgroundColor,
+                borderColor: borderColor,
+                borderWidth: 1,
+                pointRadius: 0,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+              x: {
+                type: "category",
+                ticks: {
+                  maxTicksLimit: 10,
+                  maxRotation: 0,
+                },
+              },
+              y: {
+                beginAtZero: true,
+                suggestedMin: minY,
+                suggestedMax: maxY,
+                ticks: {
+                  callback: function (value) {
+                    return value.toFixed(3);
+                  },
+                },
+              },
+            },
+            plugins: {
+              zoom: {
+                pan: {
+                  enabled: true,
+                  mode: "xy",
+                },
+                zoom: {
+                  wheel: {
+                    enabled: true,
+                  },
+                  pinch: {
+                    enabled: true,
+                  },
+                  mode: "xy",
+                },
+              },
+            },
+          },
+        };
+      };
+
+      var powerChart = new Chart(
+        document.getElementById("powerChart"),
+        createChartConfig(
+          "Power",
+          "rgba(255, 99, 132, 1)",
+          "rgba(255, 99, 132, 0.2)"
+        )
+      );
+      var voltageL1Chart = new Chart(
+        document.getElementById("voltageL1Chart"),
+        createChartConfig(
+          "L1-GND Voltage",
+          "rgba(54, 162, 235, 1)",
+          "rgba(54, 162, 235, 0.2)"
+        )
+      );
+      var voltageL2Chart = new Chart(
+        document.getElementById("voltageL2Chart"),
+        createChartConfig(
+          "L2-GND Voltage",
+          "rgba(75, 192, 192, 1)",
+          "rgba(75, 192, 192, 0.2)"
+        )
+      );
+      var voltageL3Chart = new Chart(
+        document.getElementById("voltageL3Chart"),
+        createChartConfig(
+          "L3-GND Voltage",
+          "rgba(153, 102, 255, 1)",
+          "rgba(153, 102, 255, 0.2)"
+        )
+      );
+      var pressureChart = new Chart(
+        document.getElementById("pressureChart"),
+        createChartConfig(
+          "Pressure",
+          "rgba(255, 159, 64, 1)",
+          "rgba(255, 159, 64, 0.2)"
+        )
+      );
+      var forceChart = new Chart(
+        document.getElementById("forceChart"),
+        createChartConfig(
+          "Force",
+          "rgba(255, 205, 86, 1)",
+          "rgba(255, 205, 86, 0.2)"
+        )
+      );
+      var positionChart = new Chart(
+        document.getElementById("positionChart"),
+        createChartConfig(
+          "Position of the Punch",
+          "rgba(201, 203, 207, 1)",
+          "rgba(201, 203, 207, 0.2)"
+        )
+      );
+
+      async function connectWebSocket() {
+        try {
+          var apiKey = "670a935a14221a12ae886117c99cacc7";
+          ws = new WebSocket("ws://technest.ddns.net:8001/ws");
+          ws.onopen = function (event) {
+            console.log("WebSocket connection opened");
+            ws.send(apiKey);
+          };
+          ws.onerror = function (event) {
+            console.log("WebSocket error:", event);
+          };
+          ws.onclose = function (event) {
+            console.log("WebSocket connection closed:", event);
+          };
+
+          ws.onmessage = function (event) {
+            var data = JSON.parse(event.data);
+            console.log("Received data:", data);
+
+            if (!isPlotting) return;
+
+            if (!data.timestamp || isNaN(new Date(data.timestamp))) {
+              console.error("Invalid or missing timestamp:", data.timestamp);
+              return;
+            }
+
+            var timestamp = new Date(data.timestamp).toLocaleTimeString();
+            timeLabels.push(timestamp);
+
+            if (timeLabels.length > 200) {
+              timeLabels = timeLabels.slice(-200);
+              powerChart.data.labels = timeLabels;
+              powerChart.data.datasets[0].data =
+                powerChart.data.datasets[0].data.slice(-200);
+            }
+
+            function updateChartData(chart, value, elementId) {
+              const parsedValue = parseFloat(value).toFixed(3);
+              document.getElementById(elementId).innerText = parsedValue;
+              chart.data.datasets[0].data.push(parsedValue);
+
+              const yRange = calculateYAxisRange(chart.data.datasets[0].data);
+              chart.options.scales.y.suggestedMin = yRange.min;
+              chart.options.scales.y.suggestedMax = yRange.max;
+            }
+
+            updateChartData(
+              powerChart,
+              data["Energy Consumption"].Power,
+              "powerStatus"
+            );
+            updateChartData(
+              voltageL1Chart,
+              data.Voltage["L1-GND"],
+              "voltageL1Status"
+            );
+            updateChartData(
+              voltageL2Chart,
+              data.Voltage["L2-GND"],
+              "voltageL2Status"
+            );
+            updateChartData(
+              voltageL3Chart,
+              data.Voltage["L3-GND"],
+              "voltageL3Status"
+            );
+            updateChartData(pressureChart, data.Pressure, "pressureStatus");
+            updateChartData(forceChart, data.Force, "forceStatus");
+            updateChartData(
+              positionChart,
+              data["Position of the Punch"],
+              "positionStatus"
+            );
+
+            powerChart.update("none");
+            voltageL1Chart.update("none");
+            voltageL2Chart.update("none");
+            voltageL3Chart.update("none");
+            pressureChart.update("none");
+            forceChart.update("none");
+            positionChart.update("none");
+          };
+
+          ws.onclose = function () {
+            console.log(
+              "WebSocket connection closed. Attempting to reconnect..."
+            );
+            setTimeout(connectWebSocket, 5000);
+          };
+
+          ws.onerror = function (error) {
+            console.error("WebSocket error:", error);
+          };
+        } catch (error) {
+          console.error("Connection error:", error);
+        }
+      }
+      connectWebSocket();
+    </script>
+  </body>
+</html>
